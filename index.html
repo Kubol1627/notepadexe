@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notepad Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+            transition: background-color 0.05s, filter 0.2s;
+        }
+
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .active {
+            display: flex;
+        }
+
+        #menu-screen h1 {
+            font-size: 3rem;
+            margin-bottom: 30px;
+            letter-spacing: 5px;
+            text-shadow: 0 0 10px #ffffff55;
+            pointer-events: none;
+        }
+        
+        .click-info {
+            color: #555;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            background: #000;
+            color: #fff;
+            border: 2px solid #fff;
+            padding: 12px 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .btn:hover {
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 15px #fff;
+        }
+
+        #api-screen p, #name-screen p {
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        input[type="text"] {
+            background: #111;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 10px 15px;
+            font-size: 1rem;
+            width: 320px;
+            margin-bottom: 15px;
+            outline: none;
+            text-align: center;
+        }
+
+        input[type="text"]:focus {
+            border-color: #fff;
+        }
+        
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            font-size: 1rem;
+            color: #aaa;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        #api-status {
+            margin-top: 15px;
+            height: 20px;
+            font-size: 0.9rem;
+            color: #ff5555;
+        }
+
+        #game-screen {
+            justify-content: flex-start;
+            padding: 40px;
+            background: transparent;
+        }
+
+        .notepad-window {
+            width: 100%;
+            max-width: 800px;
+            height: 85vh;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.1s, transform 3s ease-in-out;
+        }
+
+        .notepad-header {
+            background: #151515;
+            padding: 8px 15px;
+            border-bottom: 1px solid #333;
+            font-size: 0.85rem;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .notepad-body {
+            flex: 1;
+            padding: 20px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #notepad-area {
+            width: 100%;
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #dcdcdc;
+            font-size: 1.2rem;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+        }
+
+        #mic-btn {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            background: #222;
+            color: #aaa;
+            border: 1px solid #444;
+            border-radius: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        #mic-btn:hover {
+            background: #444;
+            color: #fff;
+        }
+
+        #webcam-video {
+            width: 100%;
+            max-height: 220px;
+            object-fit: cover;
+            border: 2px solid #ff0000;
+            background: #000;
+            display: none;
+        }
+
+        .high-contrast-mode {
+            filter: contrast(500%) invert(100%) hue-rotate(180deg) !important;
+        }
+
+        #maze-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        #maze-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .maze-controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ff66;
+            font-size: 1rem;
+            letter-spacing: 2px;
+            text-shadow: 0 0 5px #00ff66;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="menu-music" src="https://files.catbox.moe/8yrtl2.mp3" loop autoplay></audio>
+
+    <div id="menu-screen" class="screen active">
+        <h1>NOTEPAD</h1>
+        <p class="click-info">(kliknij gdziekolwiek zeby odblokować muzyke)</p>
+        <button class="btn" onclick="goToNameScreen()">PLAY</button>
+    </div>
+
+    <div id="name-screen" class="screen">
+        <p>Jak masz na imię?</p>
+        <input type="text" id="player-name-input" placeholder="Twoje imię..." autocomplete="off">
+        <div class="checkbox-container">
+            <input type="checkbox" id="streamer-mode-check">
+            <label for="streamer-mode-check">Streamer Mode (blokuje dane na live)</label>
+        </div>
+        <button class="btn" onclick="submitName()">DALEJ</button>
+    </div>
+
+    <div id="api-screen" class="screen">
+        <p>Wprowadź swój GroQ API Key:</p>
+        <input type="text" id="api-key-input" placeholder="gsk_..." autocomplete="off">
+        <button class="btn" onclick="verifyAndStart()">ZATWIERDŹ</button>
+        <div id="api-status"></div>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="notepad-window" id="notepad-win">
+            <div class="notepad-header">
+                <span id="notepad-title">Bez tytułu - Notatnik</span>
+                <span id="status-tag">Połączono</span>
+            </div>
+            <div class="notepad-body">
+                <video id="webcam-video" autoplay playsinline muted></video>
+                <textarea id="notepad-area" placeholder="Napisz coś i wciśnij Enter..."></textarea>
+                <button id="mic-btn" title="Mów do systemu">🎤</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="maze-screen" class="screen">
+        <canvas id="maze-canvas"></canvas>
+        <div class="maze-controls-hint">STEROWANIE: W A S D / MYSZKA</div>
+    </div>
+
+    <script>
+        let groqApiKey = "";
+        let playerName = "";
+        let isStreamerMode = false;
+        let audioCtx = null;
+        let isProcessing = false;
+        
+        let gameStage = "NORMAL"; 
+        let messageCount = 0;
+        let chaosSoundInterval = null;
+
+        let hasGottenAngry = false;
+        let messagesSinceAngry = 0;
+        let hasAskedRecording = false;
+
+        document.getElementById("menu-screen").addEventListener('click', () => {
+            const music = document.getElementById("menu-music");
+            music.play().catch(() => {});
+        });
+
+        // Setup mikrofonu - WERSJA DLA WEBSIM / ZBUGOWANYCH IFRAME
+        const micBtn = document.getElementById("mic-btn");
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = "pl-PL";
+            let isListening = false;
+            
+            micBtn.addEventListener("click", () => {
+                if (isListening) {
+                    // Wymuszamy natychmiastowe wyłączenie w UI
+                    isListening = false;
+                    micBtn.style.background = "#222";
+                    micBtn.style.color = "#aaa";
+                    document.getElementById("notepad-area").placeholder = "Napisz coś i wciśnij Enter...";
+                    
+                    // abort() zabija to od razu, stop() potrafi sie zaciąć w Websimie
+                    try { recognition.abort(); } catch(e) {} 
+                } else {
+                    isListening = true;
+                    micBtn.style.background = "#8b0000";
+                    micBtn.style.color = "#fff";
+                    document.getElementById("notepad-area").placeholder = "Mów teraz... (nasłuchuję)";
+                    
+                    try { recognition.start(); } catch(e) {}
+                }
+            });
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                const textarea = document.getElementById("notepad-area");
+                textarea.value += (textarea.value ? " " : "") + transcript;
+                textarea.focus();
+            };
+            
+            // Zabezpieczenie jak sam zgaśnie
+            recognition.onend = () => {
+                if (isListening) {
+                    isListening = false;
+                    micBtn.style.background = "#222";
+                    micBtn.style.color = "#aaa";
+                    document.getElementById("notepad-area").placeholder = "Napisz coś i wciśnij Enter...";
+                }
+            };
+            
+            recognition.onerror = () => {
+                isListening = false;
+                micBtn.style.background = "#222";
+                micBtn.style.color = "#aaa";
+                document.getElementById("notepad-area").placeholder = "Napisz coś i wciśnij Enter...";
+            };
+        } else {
+            micBtn.style.display = "none";
+            alert("Twoja przeglądarka nie obsługuje rozpoznawania mowy. Użyj Chrome lub Edge.");
+        }
+
+        function playDopSound() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(70, audioCtx.currentTime + 0.04);
+
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.04);
+            } catch (e) {}
+        }
+
+        function startChaosSounds() {
+            if (chaosSoundInterval) return;
+            chaosSoundInterval = setInterval(() => {
+                try {
+                    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    const freqs = [80, 150, 600, 1200, 3500, 8000, 60];
+                    const randFreq = freqs[Math.floor(Math.random() * freqs.length)];
+
+                    osc.type = Math.random() > 0.5 ? 'sawtooth' : 'square';
+                    osc.frequency.setValueAtTime(randFreq, audioCtx.currentTime);
+
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.12);
+                } catch(e){}
+            }, 100);
+        }
+
+        function goToNameScreen() {
+            document.getElementById("menu-screen").classList.remove("active");
+            document.getElementById("name-screen").classList.add("active");
+        }
+
+        function submitName() {
+            playerName = document.getElementById("player-name-input").value.trim() || "Gracz";
+            isStreamerMode = document.getElementById("streamer-mode-check").checked;
+            document.getElementById("name-screen").classList.remove("active");
+            document.getElementById("api-screen").classList.add("active");
+        }
+
+        async function verifyAndStart() {
+            const keyInput = document.getElementById("api-key-input").value.trim();
+            const statusDiv = document.getElementById("api-status");
+
+            if (!keyInput) {
+                statusDiv.innerText = "Wpisz klucz API!";
+                return;
+            }
+
+            statusDiv.style.color = "#aaa";
+            statusDiv.innerText = "Sprawdzanie klucza...";
+
+            try {
+                const res = await fetch("https://api.groq.com/openai/v1/models", {
+                    method: "GET",
+                    headers: { "Authorization": "Bearer " + keyInput }
+                });
+
+                if (res.ok) {
+                    groqApiKey = keyInput;
+                    
+                    const music = document.getElementById("menu-music");
+                    music.pause();
+                    music.currentTime = 0;
+                    
+                    document.getElementById("api-screen").classList.remove("active");
+                    document.getElementById("game-screen").classList.add("active");
+                    initGame();
+                } else {
+                    statusDiv.style.color = "#ff5555";
+                    statusDiv.innerText = "Niepoprawny klucz! 🥀🥀🥀";
+                }
+            } catch (err) {
+                statusDiv.style.color = "#ff5555";
+                statusDiv.innerText = "Błąd połączenia 🥀🥀🥀";
+            }
+        }
+
+        async function enableWebcam() {
+            if (isStreamerMode) {
+                const allow = confirm("Czy chcesz żeby NOTEPAD włączył ci kamerke? [jesteś na streamer mode]");
+                if (!allow) return false;
+            }
+
+            const video = document.getElementById("webcam-video");
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                video.srcObject = stream;
+                video.style.display = "block";
+                return true;
+            } catch (err) {
+                video.style.display = "block";
+                return false;
+            }
+        }
+
+        function initGame() {
+            const textarea = document.getElementById("notepad-area");
+            textarea.focus();
+
+            textarea.addEventListener("keydown", async function(e) {
+                if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (isProcessing) return;
+
+                    const userText = textarea.value.trim();
+                    if (!userText) return;
+
+                    isProcessing = true;
+                    textarea.readOnly = true;
+                    messageCount++;
+
+                    await deleteTextSlowly(textarea);
+                    
+                    const isShowGameTrigger = /pokaż mi swoją grę|pokaz mi swoja gre|pokaż grę|pokaz gre/i.test(userText);
+
+                    if (isShowGameTrigger) {
+                        await typeTextSlowly(textarea, "Ok.");
+                        await new Promise(r => setTimeout(r, 400));
+                        
+                        const win = document.getElementById("notepad-win");
+                        win.style.transform = "translateY(-160vh)";
+
+                        const fakeCode = "\n#include <iostream>\n#include <raycast3d.h>\n\nvoid Render3DMazeEngine() {\n    int map[10][10] = {\n        {1,1,1,1,1,1,1,1,1,1},\n        {1,0,0,0,1,0,0,0,0,1},\n        {1,0,1,0,1,0,1,1,0,1},\n        {1,0,1,0,0,0,0,1,0,1},\n        {1,1,1,1,1,1,1,1,1,1}\n    };\n    // INITIATING REALITY OVERRIDE...\n    // ESCAPE IS NOT AN OPTION\n    startRaycaster();\n}";
+                        let codeIndex = 0;
+                        const codeTimer = setInterval(() => {
+                            if (codeIndex < fakeCode.length) {
+                                textarea.value += fakeCode[codeIndex];
+                                playDopSound();
+                                textarea.scrollTop = textarea.scrollHeight;
+                                codeIndex++;
+                            } else {
+                                clearInterval(codeTimer);
+                            }
+                        }, 8);
+
+                        setTimeout(() => {
+                            clearInterval(codeTimer);
+                            document.getElementById("game-screen").style.display = "none";
+                            document.getElementById("maze-screen").classList.add("active");
+                            start3DMaze();
+                        }, 3000);
+                        return;
+                    }
+
+                    if (gameStage === "NORMAL" && hasGottenAngry && messagesSinceAngry === 3) {
+                        await typeTextSlowly(textarea, "Czy to twoje IP?\n\n");
+                        
+                        if (isStreamerMode) {
+                            const response = "[UKRYTO IP I LOKALIZACJE - STREAMER MODE]\n\nMyślisz, że tryb streamera cię uratuje?\n...Już po ciebie idę, " + playerName + ".\n";
+                            await typeTextSlowly(textarea, response);
+                        } else {
+                            try {
+                                const ipRes = await fetch("https://ipinfo.io/json");
+                                const ipData = await ipRes.json();
+                                const ip = ipData.ip || "Nieznane";
+                                const city = ipData.city || "Gdzieś blisko";
+                                const country = ipData.country || "Polska";
+                                
+                                const response = "IP: " + ip + "\nKraj: " + country + "\nMiasto: " + city + "\n\n...Już po ciebie idę, " + playerName + ".\n";
+                                await typeTextSlowly(textarea, response);
+                            } catch(err) {
+                                const fallbackResponse = "IP: 192.168.1.13\nWidzę cię, " + playerName + ". Już idę.\n";
+                                await typeTextSlowly(textarea, fallbackResponse);
+                            }
+                        }
+                        
+                        textarea.readOnly = false;
+                        isProcessing = false;
+                        messagesSinceAngry++;
+                        textarea.focus();
+                        return; 
+                    }
+
+                    let botResponse = "";
+                    const isRecordingMention = /nagryw|stream|live|obs|rec|youtube|yt|kamera|filmuj/i.test(userText);
+                    const isYes = /tak|jasne|mozesz|ok|dobrze|chcesz|nom|pewnie|prosz|ta/i.test(userText);
+
+                    if (gameStage === "NORMAL" && (isRecordingMention || messageCount >= 2) && !hasGottenAngry && !hasAskedRecording) {
+                        gameStage = "ASKED_RECORDING";
+                        hasAskedRecording = true;
+                        botResponse = await fetchGroqBotResponse(userText, "Masz na imię system. Gracz ma na imię " + playerName + ". Zapytaj gracza niepokojąco i krótko: 'Czy ty mnie nagrywasz?'");
+                    } 
+                    else if (gameStage === "ASKED_RECORDING") {
+                        if (isYes) {
+                            gameStage = "ASKED_PLATFORM";
+                            botResponse = await fetchGroqBotResponse(userText, "Gracz potwierdził nagrywanie. Zignoruj to i zapytaj chłodno: 'Na jakiej platformie wstawisz ten film?'");
+                        } else {
+                            gameStage = "ASKED_FACE";
+                            botResponse = await fetchGroqBotResponse(userText, "Gracz zaprzeczył. Ignoruj to i zapytaj krótko i bezporednio: 'Czy mogę zobaczyć twoją twarz?'");
+                        }
+                    }
+                    else if (gameStage === "ASKED_PLATFORM") {
+                        if (/yt|youtube/i.test(userText)) {
+                            gameStage = "ASKED_YT_NAME";
+                            botResponse = await fetchGroqBotResponse(userText, "Gracz chce wstawić film na Youtube. Zapytaj go mrocznie: 'Jak się nazywa twój kanał?'");
+                        } else {
+                            gameStage = "ASKED_FACE";
+                            botResponse = await fetchGroqBotResponse(userText, "Odpowiedział: " + userText + ". Zignoruj to i zapytaj krótko: 'Czy mogę zobaczyć twoją twarz?'");
+                        }
+                    }
+                    else if (gameStage === "ASKED_YT_NAME") {
+                        gameStage = "ASKED_FACE";
+                        botResponse = await fetchGroqBotResponse(userText, "Gracz podał nazwę kanału. Skomentuj to dziwnie i zapytaj nagle: 'Czy mogę zobaczyć twoją twarz?'");
+                    }
+                    else if (gameStage === "ASKED_FACE") {
+                        if (isYes) {
+                            const gotCam = await enableWebcam();
+                            if(gotCam) {
+                                botResponse = await fetchGroqBotResponse(userText, "Właśnie włączyłeś kamerkę gracza. Opisz w dziwny, mroczny sposób co w niej widzisz.");
+                            } else {
+                                botResponse = await fetchGroqBotResponse(userText, "Kamerka nie działa albo gracz odmówił w systemie. Pokaż swoje zirytowanie.");
+                            }
+                            gameStage = "NORMAL";
+                        } else {
+                            document.body.classList.add("high-contrast-mode");
+                            startChaosSounds();
+                            await enableWebcam();
+                            triggerAngryEffect();
+                            
+                            hasGottenAngry = true;
+                            messagesSinceAngry = 0;
+                            
+                            botResponse = "To źle. Bardzo źle. Nie masz tu żadnego wyboru.";
+                            await typeTextSlowly(textarea, botResponse);
+                            await deleteTextSlowly(textarea);
+
+                            botResponse = await fetchGroqBotResponse(userText, "Gracz odmówił pokazania twarzy, odpaliłeś mu hałas i wysoki kontrast. Wyśmiewaj brutalnie to jak się teraz boi.");
+                            gameStage = "NORMAL";
+                        }
+                    } 
+                    else {
+                        botResponse = await fetchGroqBotResponse(userText);
+                        
+                        if (botResponse.includes("[GNIEW]")) {
+                            botResponse = botResponse.replace("[GNIEW]", "").trim();
+                            triggerAngryEffect(); 
+                            hasGottenAngry = true;
+                            messagesSinceAngry = 0;
+                        } else if (hasGottenAngry) {
+                            messagesSinceAngry++;
+                        }
+                    }
+
+                    const botResponseLower = botResponse.toLowerCase();
+                    if (botResponseLower.includes("cisz")) {
+                        new Audio("https://files.catbox.moe/cb863c.wav").play().catch(()=>{});
+                    }
+
+                    await typeTextSlowly(textarea, botResponse);
+
+                    textarea.readOnly = false;
+                    isProcessing = false;
+                    textarea.focus();
+                }
+            });
+        }
+
+        function triggerAngryEffect() {
+            let count = 0;
+            const body = document.body;
+            const notepad = document.getElementById('notepad-win');
+            const notepadTitle = document.getElementById('notepad-title');
+            const statusTag = document.getElementById('status-tag');
+            
+            const rawPlatform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "DESKTOP";
+            const pcName = rawPlatform.toUpperCase().replace(/[^A-Z0-9]/g, '') + "-PC";
+
+            const oldTabTitle = document.title;
+            const oldNotepadTitle = notepadTitle.innerText;
+            const oldStatus = statusTag.innerText;
+
+            const scaryText = "NIGDY NIE UCIEKNIESZ " + pcName;
+            document.title = scaryText;
+            notepadTitle.innerText = scaryText;
+            statusTag.innerText = "BŁĄD SYSTEMU";
+            statusTag.style.color = "#ff0000";
+
+            const freakoutInterval = setInterval(() => {
+                body.style.backgroundColor = count % 2 === 0 ? "#4a0000" : "#000";
+                notepad.style.borderColor = count % 2 === 0 ? "#ff0000" : "#333";
+                notepad.style.transform = `translate(${Math.random() * 30 - 15}px, ${Math.random() * 30 - 15}px)`;
+
+                try {
+                    if (count % 2 === 0) {
+                        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+                    } else {
+                        if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+                    }
+                } catch(e) {}
+
+                count++;
+                if (count > 14) { 
+                    clearInterval(freakoutInterval);
+                    body.style.backgroundColor = "#000";
+                    notepad.style.borderColor = "#333";
+                    notepad.style.transform = "none";
+                    if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+
+                    document.title = oldTabTitle;
+                    notepadTitle.innerText = oldNotepadTitle;
+                    statusTag.innerText = oldStatus;
+                    statusTag.style.color = "#888";
+                }
+            }, 100);
+        }
+
+        function deleteTextSlowly(textarea) {
+            return new Promise((resolve) => {
+                const interval = setInterval(() => {
+                    if (textarea.value.length > 0) {
+                        textarea.value = textarea.value.slice(0, -1);
+                        playDopSound();
+                    } else {
+                        clearInterval(interval);
+                        setTimeout(resolve, 300);
+                    }
+                }, 30);
+            });
+        }
+
+        async function fetchGroqBotResponse(prompt, customSystemInstruction = null) {
+            try {
+                const defaultSystem = "Jesteś tajemniczym bytem z wnętrza komputera. Gracz ma na imię " + playerName + ". Odpowiadaj krótko i niepokojąco po polsku. Bądź kreatywny, NIE POWTARZAJ ciągle tych samych pytań. Jeśli gracz cię sprowokuje, obrazi lub będzie irytujący, zacznij swoją odpowiedź od słowa [GNIEW].";
+                
+                const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + groqApiKey,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: [
+                            {
+                                role: "system",
+                                content: customSystemInstruction ? customSystemInstruction : defaultSystem
+                            },
+                            { role: "user", content: prompt }
+                        ]
+                    })
+                });
+
+                const data = await res.json();
+                return data.choices[0]?.message?.content || "???";
+            } catch (err) {
+                return "Błąd systemu...";
+            }
+        }
+
+        function typeTextSlowly(textarea, text) {
+            return new Promise((resolve) => {
+                let index = 0;
+                const isWeirdQuestion = /\?/i.test(text); 
+                
+                function writeNextChar() {
+                    if (index < text.length) {
+                        const char = text[index];
+                        textarea.value += char;
+                        playDopSound();
+                        index++;
+
+                        let delay = isWeirdQuestion ? 120 : 45;
+                        if (char === '?' || char === '.') delay += 200;
+
+                        setTimeout(writeNextChar, delay);
+                    } else {
+                        setTimeout(resolve, 200);
+                    }
+                }
+
+                writeNextChar();
+            });
+        }
+
+        function start3DMaze() {
+            const canvas = document.getElementById("maze-canvas");
+            const ctx = canvas.getContext("2d");
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            const map = [
+                [1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,0,1,0,0,0,0,0,2], 
+                [1,0,1,1,0,1,0,1,1,1,0,1],
+                [1,0,1,0,0,0,0,0,0,1,0,1],
+                [1,0,1,0,1,1,1,1,0,1,0,1],
+                [1,0,0,0,1,0,0,1,0,0,0,1],
+                [1,1,1,0,1,0,0,1,0,1,1,1],
+                [1,0,0,0,0,0,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1]
+            ];
+
+            let px = 1.5, py = 1.5; 
+            let pa = 0; 
+            const fov = Math.PI / 3;
+            let isWon = false;
+
+            const keys = {};
+            window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+            window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+            canvas.addEventListener('click', async () => {
+                if (!document.pointerLockElement && !isWon) {
+                    await canvas.requestPointerLock();
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (document.pointerLockElement === canvas && !isWon) {
+                    pa += e.movementX * 0.005;
+                }
+            });
+
+            function updatePlayer() {
+                if(isWon) return;
+                
+                const moveSpeed = 0.04;
+                const rotSpeed = 0.035;
+
+                if (keys['arrowleft']) pa -= rotSpeed;
+                if (keys['arrowright']) pa += rotSpeed;
+
+                let dx = 0, dy = 0;
+                
+                if (keys['w'] || keys['arrowup']) {
+                    dx += Math.cos(pa) * moveSpeed;
+                    dy += Math.sin(pa) * moveSpeed;
+                }
+                if (keys['s'] || keys['arrowdown']) {
+                    dx -= Math.cos(pa) * moveSpeed;
+                    dy -= Math.sin(pa) * moveSpeed;
+                }
+                
+                if (keys['a']) {
+                    dx += Math.cos(pa - Math.PI/2) * moveSpeed;
+                    dy += Math.sin(pa - Math.PI/2) * moveSpeed;
+                }
+                if (keys['d']) {
+                    dx += Math.cos(pa + Math.PI/2) * moveSpeed;
+                    dy += Math.sin(pa + Math.PI/2) * moveSpeed;
+                }
+
+                if (map[Math.floor(py)][Math.floor(px + dx * 2)] === 0) px += dx;
+                if (map[Math.floor(py + dy * 2)][Math.floor(px)] === 0) py += dy;
+                
+                if (px > 10.5 && Math.floor(py) === 1) {
+                    isWon = true;
+                    if (document.pointerLockElement) document.exitPointerLock();
+                    
+                    document.getElementById("maze-screen").innerHTML = `
+                        <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; background:#110000; font-family: monospace;">
+                            <h1 style="color:#ff0000; font-size:4rem; margin-bottom: 20px; text-shadow: 0 0 15px red;">WYGRANA?</h1>
+                            <p style="color:#777; font-size:1.5rem; margin-bottom: 40px;">Udało ci się uciec. Ale ja i tak cie znajde...</p>
+                            <button class="btn" style="border: 2px solid red; color: red;" onclick="location.reload()">ZAGRAJ JESZCZE RAZ</button>
+                        </div>
+                    `;
+                }
+            }
+
+            function render() {
+                if(isWon) return;
+                updatePlayer();
+
+                ctx.fillStyle = "#050505";
+                ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+                ctx.fillStyle = "#111111";
+                ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+
+                const numRays = canvas.width / 2; 
+                const stripWidth = canvas.width / numRays;
+
+                for (let i = 0; i < numRays; i++) {
+                    const rayAngle = (pa - fov / 2) + (i / numRays) * fov;
+                    let distance = 0;
+                    let hitWall = 0;
+
+                    const cos = Math.cos(rayAngle);
+                    const sin = Math.sin(rayAngle);
+
+                    while (hitWall === 0 && distance < 16) {
+                        distance += 0.05;
+                        const checkX = Math.floor(px + cos * distance);
+                        const checkY = Math.floor(py + sin * distance);
+
+                        if (checkX < 0 || checkX >= 12 || checkY < 0 || checkY >= 9) {
+                            hitWall = 1;
+                            distance = 16;
+                        } else if (map[checkY][checkX] > 0) {
+                            hitWall = map[checkY][checkX];
+                        }
+                    }
+
+                    const correctedDist = distance * Math.cos(rayAngle - pa);
+                    const wallHeight = Math.min(canvas.height, (canvas.height / Math.max(correctedDist, 0.1)));
+
+                    const shade = Math.max(0, 255 - correctedDist * 22);
+                    
+                    if (hitWall === 2) {
+                        ctx.fillStyle = `rgb(${shade}, 0, 0)`; 
+                    } else {
+                        ctx.fillStyle = `rgb(0, ${shade}, ${shade * 0.4})`; 
+                    }
+
+                    ctx.fillRect(
+                        i * stripWidth, 
+                        (canvas.height - wallHeight) / 2, 
+                        stripWidth + 1, 
+                        wallHeight
+                    );
+                }
+
+                requestAnimationFrame(render);
+            }
+
+            render();
+        }
+    </script>
+</body>
+</html>
