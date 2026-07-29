@@ -287,7 +287,7 @@
             music.play().catch(() => {});
         });
 
-        // Setup mikrofonu - WERSJA DLA WEBSIM / ZBUGOWANYCH IFRAME
+        // Setup mikrofonu 
         const micBtn = document.getElementById("mic-btn");
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         
@@ -304,7 +304,6 @@
                     micBtn.style.color = "#aaa";
                     document.getElementById("notepad-area").placeholder = "Napisz coś i wciśnij Enter...";
                     
-                    // abort() zabija to od razu, stop() potrafi sie zaciąć w Websimie
                     try { recognition.abort(); } catch(e) {} 
                 } else {
                     isListening = true;
@@ -321,6 +320,18 @@
                 const textarea = document.getElementById("notepad-area");
                 textarea.value += (textarea.value ? " " : "") + transcript;
                 textarea.focus();
+                
+                // Od razu po wpisaniu tekstu symulujemy wcisniecie Entera btw
+                setTimeout(() => {
+                    const enterEvent = new KeyboardEvent("keydown", {
+                        key: "Enter",
+                        code: "Enter",
+                        keyCode: 13,
+                        which: 13,
+                        bubbles: true
+                    });
+                    textarea.dispatchEvent(enterEvent);
+                }, 150); 
             };
             
             // Zabezpieczenie jak sam zgaśnie
