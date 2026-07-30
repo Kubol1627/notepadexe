@@ -223,11 +223,11 @@
 </head>
 <body>
 
-    <audio id="menu-music" src="https://files.catbox.moe/u9k9vy.mp3" loop autoplay></audio>
+    <audio id="menu-music" src="https://files.catbox.moe/8yrtl2.mp3" loop autoplay></audio>
 
     <div id="menu-screen" class="screen active">
         <h1>NOTEPAD</h1>
-        <p class="click-info">(kliknij gdziekolwiek zeby odblokować muzyke)</p>
+        <p class="click-info" id="click-hint" style="display:none;">(kliknij gdziekolwiek zeby odblokować muzyke)</p>
         <button class="btn" onclick="goToNameScreen()">PLAY</button>
     </div>
 
@@ -282,9 +282,26 @@
         let messagesSinceAngry = 0;
         let hasAskedRecording = false;
 
+        // Auto-Play muzyki
+        const music = document.getElementById("menu-music");
+        const clickHint = document.getElementById("click-hint");
+
+        window.addEventListener('load', () => {
+            let tryPlay = music.play();
+            if (tryPlay !== undefined) {
+                tryPlay.then(() => {
+                    // Odpalilo samo z siebie, wiec chowamy info
+                    clickHint.style.display = "none";
+                }).catch((error) => {
+                    // Zablokowali gnoje, musi kliknąć zeby odblokowac XD
+                    clickHint.style.display = "block";
+                });
+            }
+        });
+
         document.getElementById("menu-screen").addEventListener('click', () => {
-            const music = document.getElementById("menu-music");
             music.play().catch(() => {});
+            clickHint.style.display = "none";
         });
 
         // Setup mikrofonu 
@@ -298,7 +315,6 @@
             
             micBtn.addEventListener("click", () => {
                 if (isListening) {
-                    // Wymuszamy natychmiastowe wyłączenie w UI
                     isListening = false;
                     micBtn.style.background = "#222";
                     micBtn.style.color = "#aaa";
@@ -321,7 +337,6 @@
                 textarea.value += (textarea.value ? " " : "") + transcript;
                 textarea.focus();
                 
-                // Od razu po wpisaniu tekstu symulujemy wcisniecie Entera btw
                 setTimeout(() => {
                     const enterEvent = new KeyboardEvent("keydown", {
                         key: "Enter",
@@ -334,7 +349,6 @@
                 }, 150); 
             };
             
-            // Zabezpieczenie jak sam zgaśnie
             recognition.onend = () => {
                 if (isListening) {
                     isListening = false;
